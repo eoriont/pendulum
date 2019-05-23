@@ -29,6 +29,9 @@ function draw() {
   // pen2.ax = pen1.px;
   // pen2.ay = pen1.py
 
+  pendulum.x = mouseX;
+  pendulum.y = mouseY;
+
   pendulum.tick();
   pendulum.render();
 
@@ -105,9 +108,13 @@ class MultiPendulum {
     this.pendulums = pendulums;
     this.pendulumPoss = []
     this.lastPendulumPoss = [];
+    this.lastParentPen = {x, y}
 
-    this.mass = 1;
-    this.grav = 9.8;
+    this.mass = .01;
+    this.grav = 2;
+
+    this.xdx = 0;
+    this.ydy = 0;
 
     for (let i = 0; i < this.pendulums; i++) {
       this.pendulumPoss.push({x: 0, y: 0, accel: 0, velo: 0, angle: angles[i]});
@@ -119,11 +126,14 @@ class MultiPendulum {
     var t = 60;
 
     for (let i = 0; i < this.pendulums; i++) {
-      console.log(i)
-      // debugger;
       let parentPen = this.pendulumPoss[i-1];
       if (parentPen == null) {
         parentPen = {x: this.x, y: this.y};
+      }
+      let lastParentPen = this.lastPendulumPoss[i-1];
+      if (lastParentPen == null) {
+        lastParentPen = {x: this.x, y: this.y, dx: this.xdx, dy: this.ydy};
+        // this.xdx = this.x - 
       }
       let pos = this.pendulumPoss[i];
       let lastPos = this.lastPendulumPoss[i];
@@ -131,38 +141,40 @@ class MultiPendulum {
 
       var t2r = sq(t)*radius;
 
-      var lvx = 0;
-      var dx = pos.x - lastPos.x;
-      var fx = 100*(dx-(lvx*t))/t2r;
+      var dx = parentPen.x - this.lastParentPen.x;
+      var lvx = dx - lastParentPen.dx;
+      var fx = (dx-(lvx*t))/t2r;
 
-      var lvy = 0;
-      var dy = pos.y - lastPos.y;
-      var fy = 100*(dy-(lvy*t))/t2r;
 
-      var anchorForce = fx + fy;
+      var dy = parentPen.y - this.lastParentPen.y;
+      var lvy = dy - lastParentPen.dy;
+      var fy = (dy-(lvy*t))/t2r;
+
+      var anchorForce = 100*(fx + fy);
 
       var paccel = -this.grav * this.mass * sin(pos.angle);
-      var drag = pos.velo * -.01;
+      var drag = -this.pendulumPoss[i].velo * .01;
 
-      pos.accel = paccel + drag + anchorForce;
+      this.pendulumPoss[i].accel = paccel + drag + anchorForce;
+      console.log(lvx)
 
-      var velo = pos.velo + pos.accel;
+      this.pendulumPoss[i].velo += this.pendulumPoss[i].accel;
+      this.pendulumPoss[i].angle += pos.velo;
 
-      var angle = pos.angle + pos.velo;
+      this.lastPendulumPoss[i].x = pos.x;
+      this.lastPendulumPoss[i].y = pos.y;
+      this.lastPendulumPoss[i].dx = dx;
+      this.lastPendulumPoss[i].dy = dy;
+      this.pendulumPoss[i].x = radius * cos(pos.angle) + parentPen.x
+      this.pendulumPoss[i].y = radius * sin(pos.angle) + parentPen.y;
 
-      var x = radius * cos(pos.angle+HALF_PI) + parentPen.x
-      var y = radius * sin(pos.angle+HALF_PI) + parentPen.y;
 
-      this.pendulumPoss[i].velo = velo;
-      this.pendulumPoss[i].angle = angle;
-      this.pendulumPoss[i].x = x;
-      this.pendulumPoss[i].y = y;
     }
-    this.lastPendulumPoss = this.pendulumPoss;
+    this.lastParentPen = {x: this.x, y: this.y};
   }
 
   render() {
-    var half = this.mass * 25
+    var half = 25//this.mass * 25
     fill(255,0 ,0);
     ellipse(this.x, this.y, half, half);
     for (let i = 0; i < this.pendulums; i++) {
@@ -171,10 +183,13 @@ class MultiPendulum {
         parentPen = {x: this.x, y: this.y};
       }
       let pendulum = this.pendulumPoss[i];
+      var radius = this.radii[i];
+      var x = radius * cos(pendulum.angle+HALF_PI) + parentPen.x
+      var y = radius * sin(pendulum.angle+HALF_PI) + parentPen.y;
 
-      line(parentPen.x, parentPen.y, pendulum.x, pendulum.y);
+      line(parentPen.x, parentPen.y, x, y);
       fill(0, 255, 0)
-      ellipse(pendulum.x, pendulum.y, half, half);
+      ellipse(x, y, half, half);
     }
 
   }
